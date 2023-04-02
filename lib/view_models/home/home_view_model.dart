@@ -1,33 +1,49 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:word_structure/repositories/impl/word_list_repository_impl.dart';
+import 'package:word_structure/repositories/word_list_repository.dart';
 
 import 'home_state.dart';
 
 final HomeViewModelProvider =
-    StateNotifierProvider.autoDispose<XXXViewModel, AsyncValue<HomeState>>(
-  (ref) => XXXViewModel(ref: ref),
+    StateNotifierProvider.autoDispose<HomeViewModel, AsyncValue<HomeState>>(
+  (ref) => HomeViewModel(ref: ref),
 );
 
-class XXXViewModel extends StateNotifier<AsyncValue<HomeState>> {
+class HomeViewModel extends StateNotifier<AsyncValue<HomeState>> {
   final AutoDisposeStateNotifierProviderRef _ref;
 
-  XXXViewModel({required AutoDisposeStateNotifierProviderRef ref})
+  HomeViewModel({required AutoDisposeStateNotifierProviderRef ref})
       : _ref = ref,
         super(const AsyncLoading()) {
     load();
   }
 
+  late final WordListRepository wordListRepository =
+      _ref.read(WordListProvider);
+
   // 初期化
-  void load() {
-    state = const AsyncValue.data(
-      HomeState(count: 0),
+  Future<void> load() async {
+    final result = await wordListRepository.fetch();
+    result.when(
+      success: (data) {
+        state = AsyncValue.data(
+          HomeState(count: data),
+        );
+      },
+      failure: (error, stacktrace) {
+        state = AsyncValue.error(error, stacktrace);
+      },
     );
   }
 
-  // カウントを+1
-  void increment() {
+  Future<void> increment() async {
     final count = state.value!.count;
-    state = AsyncValue.data(
-      HomeState(count: count + 1),
-    );
+
+    final result = await wordListRepository.update(count + 1);
+    result.when(success: (data) {
+      state = AsyncValue.data(HomeState(count: count + 1));
+    }, failure: (error, stacktrace) {
+      state = AsyncValue.error(error, stacktrace);
+    });
   }
 }
